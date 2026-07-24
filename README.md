@@ -156,10 +156,6 @@ A few notes before starting:
   internet connection (no API key needed).
 - Each notebook writes its output, processed data and charts, to
   `reports/`.
-- Notebook 04 (Monte Carlo, 10,000 simulations) is the slowest of the
-  seven and may take noticeably longer to run on a standard laptop
-  CPU.
-
 ---
 
 ## Repo structure
