@@ -8,6 +8,9 @@ __pycache__/
 # Jupyter checkpoints
 .ipynb_checkpoints/
 
+# Pytest
+.pytest_cache/
+
 # Mac system file
 .DS_Store
 
