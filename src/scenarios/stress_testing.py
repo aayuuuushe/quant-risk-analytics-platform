@@ -12,11 +12,6 @@ SCENARIOS = {
 
 def pre_crisis_var(returns: pd.Series, crisis_start: str,
                     confidence: float, window: int = 250) -> float:
-    """
-    VaR estimated only from the `window` trading days immediately
-    preceding `crisis_start` — avoids look-ahead from including the
-    crisis itself in the estimation sample.
-    """
     cutoff = pd.Timestamp(crisis_start) - pd.Timedelta(days=1)
     history = returns.loc[:cutoff].tail(window)
     return -np.percentile(history, (1 - confidence) * 100)
@@ -40,11 +35,6 @@ def stress_scenarios(portfolio_returns: pd.Series,
 
 def worst_drawdown_windows(returns: pd.Series, n_windows: int = 6,
                             window: int = 40) -> pd.Series:
-    """
-    Locates the n worst rolling drawdowns in the sample — used to verify
-    the hand-picked scenario windows line up with the largest real
-    drawdowns in this portfolio's own history.
-    """
     cum = returns.cumsum()
     rolling_peak = cum.rolling(window, min_periods=1).max()
     drawdown = cum - rolling_peak

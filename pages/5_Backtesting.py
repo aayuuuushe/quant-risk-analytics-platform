@@ -25,8 +25,8 @@ level = st.radio("Confidence level to inspect", [0.95, 0.99],
 r = (results_95 if level == 0.95 else results_99)[method]
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Kupiec Result", "PASS" if r["kupiec"]["passed"] else "FAIL",
-            f"p={r['kupiec']['p_value']:.3f}" if pd.notna(r['kupiec']['p_value']) else "N/A")
+col1.metric("Kupiec Result", "PASS" if r["kupiec"]["passed"] else "FAIL")
+col1.caption(f"p-value: {r['kupiec']['p_value']:.3f}" if pd.notna(r['kupiec']['p_value']) else "p-value: N/A")
 col2.metric("Christoffersen Result", "PASS" if r["christoffersen"]["passed"] else "FAIL")
 col3.metric("Breaches", f"{len(r['breach_dates'])} / {len(r['var_series'])}")
 col4.metric("Verdict", r["verdict"])

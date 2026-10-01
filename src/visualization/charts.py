@@ -31,8 +31,7 @@ LAYOUT = dict(
         bordercolor='#00A3FF',
         font=dict(color='#FFFFFF')
     ),
-    margin=dict(l=50, r=20, t=50, b=40)
-)
+    margin=dict(l=50, r=20, t=50, b=40))
 
 COLORS = ['#00A3FF', '#00D4AA', '#FFB347', '#C084FC', '#FF6B6B']
 
@@ -56,8 +55,7 @@ def cumulative_performance_chart(log_returns: pd.DataFrame):
             name=ticker,
             line=dict(color=COLORS[i % len(COLORS)], width=1.5),
             hovertemplate=f'<b>{ticker}</b><br>%{{x|%Y-%m-%d}}'
-                          f'<br>$%{{y:.2f}}<extra></extra>'
-        ))
+                          f'<br>$%{{y:.2f}}<extra></extra>'))
     fig.add_hline(y=1, line_dash='dash',
                   line_color='#2A2D3E', line_width=1)
     return fig
@@ -73,8 +71,7 @@ def return_distribution_chart(portfolio_returns: pd.Series,
         histnorm='probability density',
         name='Daily Returns',
         marker_color='#00A3FF',
-        opacity=0.6
-    ))
+        opacity=0.6))
     tail = portfolio_returns[portfolio_returns <= -var_99]
     if len(tail) > 0:
         fig.add_trace(go.Histogram(
@@ -82,8 +79,7 @@ def return_distribution_chart(portfolio_returns: pd.Series,
             histnorm='probability density',
             name='99% Tail',
             marker_color='#FF4444',
-            opacity=0.5
-        ))
+            opacity=0.5))
     fig.add_vline(x=-var_95, line_color='#FFB347',
                   line_dash='dash', line_width=2,
                   annotation_text='95% VaR',
@@ -93,38 +89,79 @@ def return_distribution_chart(portfolio_returns: pd.Series,
                   annotation_text='99% VaR',
                   annotation_font_color='#FF4444')
     return fig
+def parametric_overlay_chart(
+    portfolio_returns: pd.Series,
+    mu_p: float,
+    sigma_p: float,
+    p_var_95: float,
+    p_var_99: float,
+    h_var_95: float,
+    h_var_99: float,
+):
+    fig = _fig("Actual Returns vs Fitted Normal")
 
+    fig.add_trace(
+        go.Histogram(
+            x=portfolio_returns,
+            nbinsx=80,
+            histnorm="probability density",
+            name="Actual Returns",
+            marker_color="#00A3FF",
+            opacity=0.5,
+        )
+    )
 
-def parametric_overlay_chart(portfolio_returns: pd.Series,
-                              mu_p: float, sigma_p: float,
-                              p_var_95: float, p_var_99: float,
-                              h_var_95: float, h_var_99: float):
-    fig = _fig('Actual Returns vs Fitted Normal')
-    fig.add_trace(go.Histogram(
-        x=portfolio_returns, nbinsx=80,
-        histnorm='probability density',
-        name='Actual Returns',
-        marker_color='#00A3FF', opacity=0.5
-    ))
     x = np.linspace(
         portfolio_returns.mean() - 4 * portfolio_returns.std(),
         portfolio_returns.mean() + 4 * portfolio_returns.std(),
-        300
+        300,
     )
-    fig.add_trace(go.Scatter(
-        x=x, y=norm.pdf(x, mu_p, sigma_p),
-        name='Fitted Normal',
-        line=dict(color='#00D4AA', width=2)
-    ))
 
-    fig.add_vline(x=-p_var_95, line_color='#FFB347', line_dash='dash', line_width=2,
-              annotation_text='95% Param', annotation_position='top left')
-    fig.add_vline(x=-p_var_99, line_color='#FF4444', line_dash='dash', line_width=2,
-              annotation_text='99% Param', annotation_position='top right')
-    fig.add_vline(x=-h_var_95, line_color='#FFB347', line_dash='dot', line_width=2,
-              annotation_text='95% Hist', annotation_position='bottom left')
-    fig.add_vline(x=-h_var_99, line_color='#FF4444', line_dash='dot', line_width=2,
-              annotation_text='99% Hist', annotation_position='bottom right')
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=norm.pdf(x, mu_p, sigma_p),
+            name="Fitted Normal",
+            line=dict(color="#00D4AA", width=2),
+        )
+    )
+
+    fig.add_vline(
+        x=-p_var_95,
+        line_color="#FFB347",
+        line_dash="dash",
+        line_width=2,
+        annotation_text="95P",
+        annotation_position="top left",
+    )
+
+    fig.add_vline(
+        x=-p_var_99,
+        line_color="#FF4444",
+        line_dash="dash",
+        line_width=2,
+        annotation_text="99P",
+        annotation_position="top left",
+    )
+
+    fig.add_vline(
+        x=-h_var_95,
+        line_color="#FFB347",
+        line_dash="dot",
+        line_width=2,
+        annotation_text="95H",
+        annotation_position="top right",
+    )
+
+    fig.add_vline(
+        x=-h_var_99,
+        line_color="#FF4444",
+        line_dash="dot",
+        line_width=2,
+        annotation_text="99H",
+        annotation_position="top left",
+    )
+
     return fig
 
 
@@ -158,13 +195,11 @@ def ewma_volatility_chart(dates, ewma_vol: np.ndarray):
         x=dates, y=ewma_vol * 100,
         name='EWMA Volatility',
         line=dict(color='#00A3FF', width=1.2),
-        hovertemplate='%{x|%Y-%m-%d}<br>Vol: %{y:.3f}%<extra></extra>'
-    ))
+        hovertemplate='%{x|%Y-%m-%d}<br>Vol: %{y:.3f}%<extra></extra>'))
     crises = [
         ('2020-02-01', '2020-06-01', 'COVID', '#FF4444'),
         ('2018-09-01', '2019-01-01', '2018 Selloff', '#FFB347'),
-        ('2022-01-01', '2022-10-31', '2022 Rate Shock', '#C084FC'),
-    ]
+        ('2022-01-01', '2022-10-31', '2022 Rate Shock', '#C084FC'),]
     for start, end, label, color in crises:
         fig.add_vrect(
             x0=start, x1=end,
@@ -172,8 +207,7 @@ def ewma_volatility_chart(dates, ewma_vol: np.ndarray):
             annotation_text=label,
             annotation_position='top left',
             annotation_font_color=color,
-            annotation_font_size=9
-        )
+            annotation_font_size=9)
     return fig
 
 
@@ -184,17 +218,14 @@ def ewma_var_chart(dates,
     fig.add_trace(go.Scatter(
         x=dates, y=rolling_var_95 * 100,
         name='95% EWMA VaR',
-        line=dict(color='#FFB347', width=1.2)
-    ))
+        line=dict(color='#FFB347', width=1.2)))
     fig.add_trace(go.Scatter(
         x=dates, y=rolling_var_99 * 100,
         name='99% EWMA VaR',
-        line=dict(color='#FF4444', width=1.2)
-    ))
+        line=dict(color='#FF4444', width=1.2)))
     for start, end, color in [
         ('2020-02-01', '2020-06-01', '#FF4444'),
-        ('2018-09-01', '2019-01-01', '#FFB347')
-    ]:
+        ('2018-09-01', '2019-01-01', '#FFB347')]:
         fig.add_vrect(x0=start, x1=end,
                       fillcolor=color, opacity=0.08, line_width=0)
     return fig

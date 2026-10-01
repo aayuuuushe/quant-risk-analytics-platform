@@ -198,7 +198,16 @@ summary_df = pd.DataFrame(
         ],
     }
 )
-st.download_button(
-    "⬇ Download VaR Summary (CSV)", data=summary_df.to_csv(index=False),
-    file_name="var_summary.csv", mime="text/csv"
-)
+from src.reporting.report_generator import generate_report_data, render_pdf_report, render_json_report
+
+report_data = generate_report_data(
+    log_returns, port_ret, w, cfg["tickers"], cfg["weights"],
+    pv, n_sim, cfg["start_date"], cfg["end_date"])
+pdf_bytes = render_pdf_report(report_data)
+json_report = render_json_report(report_data)
+
+col_a, col_b = st.columns(2)
+col_a.download_button("⬇ Download Full Report (PDF)", data=pdf_bytes,
+                       file_name="risk_report.pdf", mime="application/pdf")
+col_b.download_button("⬇ Download Full Report (JSON)", data=json_report,
+                       file_name="risk_report.json", mime="application/json")

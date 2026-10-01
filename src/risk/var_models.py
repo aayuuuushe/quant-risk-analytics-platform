@@ -8,14 +8,6 @@ from src.config import MC_SEED, EWMA_LAMBDA, EWMA_BURN_IN
 
 def portfolio_returns_series(log_returns: pd.DataFrame,
                               weights: np.ndarray) -> pd.Series:
-    """
-    Portfolio return series, aggregated correctly across assets.
-
-    Simple returns (not log returns) are additive across assets, so the
-    portfolio simple return is the weighted sum of constituent simple
-    returns. The result is converted back to a log return for use in
-    time-series calculations (EWMA, cumulative charts) downstream.
-    """
     simple_returns = np.exp(log_returns) - 1
     portfolio_simple = simple_returns.dot(weights)
     return np.log1p(portfolio_simple)
@@ -80,10 +72,6 @@ def monte_carlo_full(log_returns, weights, confidence,
 
 def ewma_variance_series(portfolio_returns: pd.Series,lam: float = EWMA_LAMBDA,
                          burn_in: int = EWMA_BURN_IN) -> np.ndarray:
-    """
-    RiskMetrics EWMA variance, seeded on the first `burn_in` observations
-    only (not the full sample) to avoid look-ahead bias in the seed.
-    """
     r = portfolio_returns.values
     n = len(r)
     ewma_var = np.full(n, np.nan)
