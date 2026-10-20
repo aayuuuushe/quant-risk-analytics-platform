@@ -20,23 +20,32 @@ st.caption(
 results = stress_scenarios(port_ret)
 rows = []
 for name, data in results.items():
-    worst = abs(data["worst_day"]) / 100
-    ratio = worst / data["pre_var_99"] if data["pre_var_99"] else float("nan")
+    pre = data["pre_var_99"]
+    ratio = abs(data["worst_day"]) / 100 / pre if pre == pre else float("nan")   # nan-safe
     rows.append({
         "Scenario": name,
         "Total Return": f"{data['total']:.2f}%",
         "Worst Day": f"{data['worst_day']:.2f}%",
-        "Pre-Crisis VaR99": f"{data['pre_var_99']*100:.2f}%",
-        "Worst / VaR99": f"{ratio:.1f}x",
+        "Pre-Crisis VaR99": f"{pre*100:.2f}%" if pre == pre else "n/a",
+        "Worst / VaR99": f"{ratio:.1f}x" if ratio == ratio else "n/a",
+        "Days of history used": data["pre_obs"],
+        "VaR breaches (expected)": (f"{data['breaches']} ({data['expected_breaches']:.1f})"
+                                    if data["breaches"] is not None else "n/a"),
     })
-st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    if data["pre_obs"] < 250:
+        st.warning(f"{name}: the pre-crisis benchmark uses only {data['pre_obs']} days of "
+                   f"history instead of 250, so it is less reliable.")
+st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
-st.plotly_chart(stress_cumulative_chart(results), use_container_width=True)
+st.plotly_chart(stress_cumulative_chart(results), width="stretch")
 
 shocks = {'Market Correction  −10%': -0.10, 'Severe Drawdown    −20%': -0.20,
           'Crisis Scenario    −30%': -0.30, 'Extreme Tail Event −40%': -0.40}
 shock_losses = {name: abs(pct) * pv for name, pct in shocks.items()}
-st.plotly_chart(shock_bar_chart(shock_losses, pv), use_container_width=True)
+st.plotly_chart(shock_bar_chart(shock_losses, pv), width="stretch")
 
-with st.expander("How were these scenario windows chosen?"):
-    st.write(worst_drawdown_windows(port_ret))
+with st.expander("Cross-check: the portfolio's own worst drawdown episodes"):
+    st.caption("The four scenario windows are well-known stress periods chosen by date. "
+               "This table shows the worst peak-to-trough episodes in the portfolio's own "
+               "history, for comparison.")
+    st.dataframe(worst_drawdown_windows(port_ret), hide_index=True)

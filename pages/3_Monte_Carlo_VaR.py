@@ -35,4 +35,4 @@ fig.add_vline(x=-result_95['var']*100, line_color="#FFB347", line_dash="dash", a
 fig.add_vline(x=-result_99['var']*100, line_color="#FF4444", line_dash="dash", annotation_text="99% VaR")
 fig.update_layout(paper_bgcolor="#1E2130", plot_bgcolor="#1E2130",
                    font=dict(color="#8B9DC3"), title="Simulated Portfolio Return Distribution")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")

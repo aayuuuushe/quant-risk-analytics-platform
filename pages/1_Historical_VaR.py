@@ -1,7 +1,7 @@
 import streamlit as st
 from ui_helpers import inject_theme, render_sidebar
 from src.risk.var_models import historical_var, historical_es
-from src.risk.metrics import diversification_benefit
+from src.risk.metrics import diversification_benefit, individual_historical_vars
 from src.visualization.charts import return_distribution_chart, diversification_bar_chart, correlation_heatmap
 
 st.set_page_config(page_title="Historical VaR", page_icon="📊", layout="wide")
@@ -32,7 +32,7 @@ st.plotly_chart(return_distribution_chart(port_ret, var_95, var_99), width="stre
 st.markdown("### Diversification Benefit")
 div_benefit = diversification_benefit(log_returns, w, 0.95)
 tickers = log_returns.columns.tolist()
-individual_vars = [historical_var(log_returns[t], 0.95) for t in tickers]
+individual_vars = individual_historical_vars(log_returns, 0.95)
 weighted_avg = sum(wi * v for wi, v in zip(w, individual_vars))
 
 st.metric("Diversification Benefit", f"${div_benefit*pv:,.0f}/day",

@@ -262,7 +262,7 @@ def stress_cumulative_chart(scenario_results: dict):
     fig = _fig('Cumulative Return During Stress Periods')
     colors = ['#FF4444', '#00A3FF', '#FFB347', '#00D4AA']
     for i, (name, data) in enumerate(scenario_results.items()):
-        cum = (np.exp(data['returns'].cumsum()) - 1) * 100
+        cum = ((1 + data['returns']).cumprod() - 1) * 100
         fig.add_trace(go.Scatter(
             x=list(range(len(cum))),
             y=cum.values,

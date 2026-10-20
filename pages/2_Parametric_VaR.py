@@ -32,5 +32,5 @@ col4.metric("ES (99%)", f"${p_es_99*pv:,.0f}", f"{p_es_99*100:.2f}%")
 
 st.plotly_chart(
     parametric_overlay_chart(port_ret, mu_p, sigma_p, p_var_95, p_var_99, h_var_95, h_var_99),
-    use_container_width=True
+    width="stretch"
 )

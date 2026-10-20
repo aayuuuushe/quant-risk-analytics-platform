@@ -23,5 +23,5 @@ col4.metric("ES (99%)", f"${es_99*pv:,.0f}", f"{es_99*100:.2f}%")
 ewma_vol_series, rolling_var_95 = ewma_rolling_var(port_ret, 0.95)
 _, rolling_var_99 = ewma_rolling_var(port_ret, 0.99)
 
-st.plotly_chart(ewma_volatility_chart(port_ret.index, ewma_vol_series), use_container_width=True)
-st.plotly_chart(ewma_var_chart(port_ret.index, rolling_var_95, rolling_var_99), use_container_width=True)
+st.plotly_chart(ewma_volatility_chart(port_ret.index, ewma_vol_series), width="stretch")
+st.plotly_chart(ewma_var_chart(port_ret.index, rolling_var_95, rolling_var_99), width="stretch")

@@ -1,332 +1,250 @@
 # Quant Risk Analytics Platform
 
-A Value-at-Risk engine and interactive dashboard implementing four risk
-models, statistical model validation, and historical stress testing on
-a 5-stock equity portfolio — built to demonstrate applied quantitative
-risk methodology and clean, reproducible analytical Python, not
-software engineering.
+Five assets across four sectors (technology, financials, energy and healthcare), ten years of daily data, and four ways of measuring how much a portfolio could lose in one day.
 
-**Live demo:** _add your deployed Streamlit URL here once live_
-**Portfolio:** AAPL (tech), JPM (banking), XOM (energy), JNJ (healthcare),
-GS (financials) — equally weighted, daily prices 2015–2024 (2,514 trading days)
+## About this project
 
----
+I'm fascinated by financial markets, portfolio risk, volatility, and statistical machine learning. This fascination led me to develop a quantitative risk platform for a $1 million, five-asset portfolio, implementing Historical and Parametric VaR, Monte Carlo simulation, Expected Shortfall (ES), and EWMA-based volatility estimation at 95% and 99% confidence levels. I also applied the Kupiec and Christoffersen tests for VaR backtesting to understand how different risk estimation approaches performed against historical market data and whether observed VaR breaches were consistent with the models' predictions.
 
-## Table of Contents
+For me, the interesting part isn't just what the numbers tell us, but how models arrive at their results, the assumptions behind them, and how reliable and useful those results are in practice.
 
-- [Motivation](#motivation)
-- [Risk Models Implemented](#risk-models-implemented)
-- [Mathematical Background](#mathematical-background)
-- [Key Result](#key-result)
-- [Two Corrections Made During Development](#two-corrections-made-during-development)
-- [The Numbers](#the-numbers)
-- [Features](#features)
-- [Project Structure](#project-structure)
-- [Technologies](#technologies)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Testing](#testing)
-- [Roadmap](#roadmap)
-- [References](#references)
+## The question
 
----
+How much could this portfolio lose in one day, and how far can we trust that number?
 
-## Motivation
+| Term | Plain meaning |
+|---|---|
+| Value at Risk (VaR) | A one-day loss limit. A 95% VaR means the loss should be smaller than the limit on about 19 days out of 20. A 99% VaR means about 99 days out of 100. |
+| Expected Shortfall (ES) | The average loss on the days that go past the VaR limit. It says how bad the bad days are. |
+| Backtesting | Checking old forecasts against what really happened. Each day the forecast is made using only earlier data. |
+| Breach | A day when the loss was bigger than that day's VaR limit. |
+| Kupiec test | Asks whether the number of breaches is about what the confidence level promises. |
+| Christoffersen test | Asks whether breaches are spread out or come in bunches, as they tend to in a crisis. |
+| Stress test | Replays a real past crisis on the portfolio and looks at what it would have lost. |
 
-Value at Risk is the standard first question in market risk management:
-how much could a portfolio lose, and how much should that number be
-trusted? This project builds four established approaches to answering
-that question, checks each one against ten years of real market data
-using formal statistical tests, and stress-tests the results against
-genuine historical crises. Two methodological errors were found and
-corrected during development — both are documented below, since finding
-and fixing them was as instructive as building the models themselves.
+## Results at a glance
 
-The goal was not to build the most feature-rich dashboard possible, but
-to build a small number of models correctly, prove they're correct with
-real tests, and be honest about where each one breaks down.
+- The four methods disagree. For a 95% one-day limit they range from $14,668 (EWMA) to $20,037 (Monte Carlo). For 99% they range from $20,745 (EWMA) to $33,584 (Historical).
+- At 95%, every method had about the right number of breaches.
+- At 99%, every method had too many breaches (36 to 59, against 22.6 expected). The 99% limits were too low.
+- Only EWMA's breaches were spread out rather than bunched, at both levels. It still had too many breaches at 99%.
+- On breach days the actual losses were larger than the ES forecast (1.10 to 1.33 times larger), so ES was underestimated by every method.
+- In the COVID crash the portfolio lost 37.86% over the period. Its worst day was −11.08%, which is 3.8 times the 99% VaR that could have been calculated just before the crash.
 
----
+## The portfolio
 
-## Risk Models Implemented
-
-| Model | Assumption | Reference |
-|---|---|---|
-| Historical Simulation | None — uses the empirical return distribution directly | Hull, Ch. 22 |
-| Parametric (Delta-Normal) | Portfolio returns are normally distributed | Hull, Ch. 22 |
-| Monte Carlo | Multivariate normal, fit to historical mean/covariance | Hull, Ch. 22 |
-| EWMA (RiskMetrics) | Time-varying volatility, exponential decay (λ = 0.94) | J.P. Morgan RiskMetrics, 1996 |
-
-Each model estimates both **Value at Risk (VaR)** and **Expected
-Shortfall (ES)** at 95% and 99% confidence.
-
----
-
-## Mathematical Background
-
-**Portfolio return construction.** Portfolio return is built by
-aggregating *simple* returns across assets — the mathematically correct
-approach, since simple returns are additive across a portfolio, while
-log returns are only additive through time for a single asset — and
-then converted to a log return where one is needed downstream (e.g. for
-the EWMA recursion).
-
-**Parametric VaR and ES**, for portfolio mean μ_p and volatility σ_p:
-
-VaR_α = −(μ_p + z_α · σ_p)
-ES_α = −μ_p + σ_p · φ(z_α) / (1 − α)
-
-**EWMA volatility**, RiskMetrics recursion:
-
-σ²_t = λ · σ²_(t−1) + (1 − λ) · r²_(t−1)
-
-seeded on a 250-day burn-in window rather than the full sample, to
-avoid look-ahead bias in the initial estimate.
-
-**Model validation** uses two tests on every method, at both confidence
-levels:
-- **Kupiec Proportion-of-Failures test** — does the *number* of breach
-  days match what the model's stated confidence level predicts?
-- **Christoffersen Independence test** — are breach days spread
-  independently through time, or do they cluster together (e.g. during
-  a single crisis)?
-
-A model can pass Kupiec and still fail Christoffersen — which is
-exactly what happens with three of the four models here (see below).
-
----
-
-## Key Result
-
-**EWMA is the only model that passes both backtests at 95% confidence.**
-The other three (Historical, Parametric, Monte Carlo) get the *number*
-of breach days statistically right, but their breaches cluster together
-during real crises — COVID, the 2018 selloff, the 2022 rate shock —
-rather than occurring independently through time. That clustering is a
-failure mode the Kupiec test alone cannot detect, which is exactly why
-the Christoffersen test is run alongside it: EWMA's daily volatility
-re-estimation lets its risk threshold widen quickly once a crisis
-begins, spreading its breaches out instead of letting them accumulate
-in one bad month.
-
-All four models fail Kupiec at 99% confidence — a statistically
-expected result given only ~23 tail observations are available across
-the full ten-year sample.
-
----
-
-## Two Corrections Made During Development
-
-**1. Portfolio return construction.** Portfolio returns were originally
-computed as a weighted sum of individual assets' log returns. Log
-returns are only additive through time for a single asset, not across
-assets in a portfolio — the correct construction weights *simple*
-returns, then converts the result to a log return if needed downstream.
-Corrected across every notebook; the effect on VaR figures is small
-under normal conditions and grows on large-move days, since the
-approximation error scales with the size of the return.
-
-**2. Stress-test benchmarking.** The original "pre-crisis VaR" benchmark
-was computed on the full 2015–2024 sample, which already contains the
-crisis days being measured against it — a circular comparison. Each
-scenario is now benchmarked against a VaR estimate computed only from
-the 250 trading days immediately preceding that scenario's start
-date — the risk figure a desk would actually have been holding on day
-one of the event.
-
-Both fixes shifted every downstream VaR, backtest, and stress-test
-figure; the numbers below reflect the corrected methodology.
-
----
-
-## The Numbers
-
-**VaR on a $1,000,000 portfolio:**
-
-| Method | VaR 95% | VaR 99% |
-|--------|---------|---------|
-| Historical | $18,045 | $34,161 |
-| Parametric | $20,046 | $28,562 |
-| Monte Carlo | $20,190 | $27,904 |
-| EWMA (current) | $14,640 | $20,706 |
-
-**Backtesting** (rolling 250-day window, walk-forward, no look-ahead):
-
-| Method | 95% Verdict | 99% Verdict |
-|---|---|---|
-| Historical | CONDITIONAL | FAIL |
-| Parametric | CONDITIONAL | FAIL |
-| Monte Carlo | CONDITIONAL | FAIL |
-| **EWMA** | **PASS** | FAIL |
-
-**Stress testing** (each scenario benchmarked against its own
-pre-crisis 99% VaR):
-
-| Scenario | Worst Day | Pre-Crisis VaR99 | Worst / VaR99 |
+| Ticker | Company | Sector | Weight |
 |---|---|---|---|
-| COVID Crash | −11.74% | 2.98% | **3.9x** |
-| 2018 Selloff | −3.60% | 3.09% | 1.2x |
-| 2022 Rate Shock | −3.75% | 2.46% | 1.5x |
-| China Selloff | −4.09% | 1.99% | 2.1x |
+| AAPL | Apple | Technology | 20% |
+| JPM | JPMorgan Chase | Financials | 20% |
+| XOM | Exxon Mobil | Energy | 20% |
+| JNJ | Johnson & Johnson | Health care | 20% |
+| GS | Goldman Sachs | Financials | 20% |
 
-Diversification benefit at 95%: **$6,331/day** versus holding each
-asset individually.
+Value $1,000,000. Daily prices from 2015-01-02 to 2024-12-30 (2,515 trading days, 2,514 daily returns), from Yahoo Finance. Average daily return 0.06%, standard deviation 1.25%.
 
-Full detail, interpretation, assumptions, and limitations are in the
-downloadable report generated by the app (see [Usage](#usage)).
+JPM and GS are both Financials and move closely together (correlation 0.83), so the portfolio has four sectors, not five.
 
----
+## What is inside
 
-## Features
+Seven notebooks, each building on the last.
 
-- Four VaR/ES methodologies, each with its own dashboard page
-- Statistical backtesting (Kupiec + Christoffersen) at both 95% and 99%
-- Historical stress testing against four real market crises, benchmarked
-  against scenario-specific pre-crisis VaR (not a circular full-sample figure)
-- Interactive portfolio controls — assets, weights, portfolio value,
-  date range — with every page recalculating live from the same shared
-  `src/` logic
-- One-click downloadable report (PDF and JSON) with an executive
-  summary, plain-language interpretation for non-specialist readers, full
-  model detail, assumptions, limitations, warnings, and a glossary
-- Known-answer test suite pinned to the notebooks' own output
+**01 Data Pipeline.** Downloads daily prices and converts them into log returns. Every later notebook reads this file.
 
----
+**02 Historical Simulation VaR.** Sorts the actual portfolio returns from worst to best and reads off the loss at the chosen confidence level. It assumes nothing about the shape of returns. It also measures the benefit of holding five stocks instead of one.
 
-## Project Structure
+**03 Parametric VaR.** Assumes returns follow a normal (bell-curve) distribution and calculates VaR and ES from the portfolio's average return and covariance matrix.
+
+**04 Monte Carlo VaR.** Simulates 10,000 possible days (seed 42) from a normal distribution with the historical averages and covariances of the five stocks.
+
+**05 EWMA Volatility.** The RiskMetrics method with decay factor 0.94. Recent days count more than old days, so the estimate follows current market conditions. It starts from the first 250 days.
+
+**06 Backtesting.** Compares the daily forecasts of Historical, Parametric and EWMA with what actually happened on the same 2,264 dates. Each forecast uses a rolling 250-day window (EWMA uses all earlier data) and only data up to the day before. Tests: Kupiec, Christoffersen, the two combined, and a check of ES on breach days. Monte Carlo is not backtested separately because, with normal returns, it gives the same result as Parametric.
+
+**07 Stress Testing.** Replays four crises: COVID 2020, the 2018 selloff, the 2022 rate shock and the 2015 China selloff. Each is compared with a VaR calculated only from the 250 days before it began. It also applies simple instant shocks of −10% to −40%.
+
+**Dashboard.** `app.py` is a Streamlit app that shows the same calculations and produces a PDF and JSON report. It was built with AI assistance. Its calculations are in `src/` and were checked against the notebook results.
+
+## The numbers
+
+All figures come from the notebooks in this repository. One-day horizon, $1,000,000 portfolio.
+
+### VaR
+
+| Method | 95% | 99% |
+|---|---|---|
+| Historical | $17,883 | $33,584 |
+| Parametric | $19,886 | $28,393 |
+| Monte Carlo | $20,037 | $27,843 |
+| EWMA | $14,668 | $20,745 |
+
+![VaR comparison across methods](reports/04_var_comparison.png)
+
+Historical VaR is lower than Parametric at 95% but higher at 99%. Real returns have more extreme days than a bell curve expects, and that shows up at the 99% level. EWMA is lowest because current volatility (0.89% a day) is below the ten-year average (1.25%). It describes today. The other three describe the whole ten years.
+
+![Parametric versus historical](reports/03_parametric_var.png)
+
+### Expected Shortfall
+
+| Method | ES 95% | ES 99% |
+|---|---|---|
+| Historical | $28,914 (1.62x VaR) | $49,691 (1.48x VaR) |
+| Parametric | $25,102 | $32,623 |
+| Monte Carlo | $24,953 | $31,770 |
+| EWMA | $18,394 | $23,767 |
+
+### Diversification
+
+Holding the five stocks together lowers the 95% historical VaR by $6,190 a day, compared with the weighted average of each stock's own VaR.
+
+![Individual VaR versus portfolio VaR](reports/02_diversification_benefit.png)
+
+![EWMA volatility](reports/05_ewma_volatility.png)
+
+### Backtesting
+
+2,264 daily forecasts per method, from 2015-12-31 to 2024-12-30.
+
+| Method | Level | Expected breaches | Observed | Kupiec p | Christoffersen p | Combined p | Verdict |
+|---|---|---|---|---|---|---|---|
+| Historical | 95% | 113.2 | 109 | 0.6837 | 0.0002 | 0.0009 | CLUSTERED |
+| Historical | 99% | 22.6 | 36 | 0.0094 | 0.0199 | 0.0023 | FAIL |
+| Parametric | 95% | 113.2 | 105 | 0.4237 | 0.0001 | 0.0003 | CLUSTERED |
+| Parametric | 99% | 22.6 | 59 | 0.0000 | 0.0000 | 0.0000 | FAIL |
+| EWMA | 95% | 113.2 | 108 | 0.6135 | 0.4158 | 0.6322 | PASS |
+| EWMA | 99% | 22.6 | 51 | 0.0000 | 0.1384 | 0.0000 | FAIL |
+
+A p-value below 0.05 means the result is unlikely to be chance.
+
+- **PASS:** right number of breaches, and not bunched.
+- **CLUSTERED:** right number of breaches, but they come in bunches.
+- **FAIL:** wrong number of breaches.
+
+What this shows:
+
+- At 95%, every method has about the right number of breaches. Historical and Parametric breaches bunch together in volatile periods. The Kupiec test alone cannot see this.
+- At 99%, every method fails. A 99% limit should be broken about 22.6 times in 2,264 days, and these were broken 36 to 59 times. The likely reasons are fat-tailed returns, and, for fixed windows, slow reaction when volatility jumps.
+- EWMA is the only method whose breaches are not bunched. It still breaks the 99% limit far too often.
+- A test that does not reject a model does not prove the model is right.
+
+![Rolling 95% VaR against actual returns](reports/06_backtesting.png)
+
+![Observed versus expected breaches](reports/06_backtesting_comparison.png)
+
+### Expected Shortfall on breach days
+
+On the days the VaR limit was broken, the actual average loss was bigger than the ES the model had forecast for those days. A ratio of 1.00x would be exact.
+
+| Method | 95% | 99% |
+|---|---|---|
+| Historical | 1.12x | 1.10x |
+| Parametric | 1.33x | 1.25x |
+| EWMA | 1.20x | 1.17x |
+
+All three methods underestimated tail losses. The normal-based methods did so the most.
+
+### Stress testing
+
+| Scenario | Window | Total return | Worst day | VaR 99% before the crisis | Worst day / VaR | Days of history used | Breaches (expected) |
+|---|---|---|---|---|---|---|---|
+| COVID crash | 2020-02-20 to 2020-03-23 | −37.86% | −11.08% | 2.94% | 3.8x | 250 | 12 (0.2) |
+| 2018 selloff | 2018-10-01 to 2018-12-31 | −18.66% | −3.53% | 3.05% | 1.2x | 250 | 2 (0.6) |
+| 2022 rate shock | 2022-01-01 to 2022-10-31 | +6.93% | −3.68% | 2.43% | 1.5x | 250 | 10 (2.1) |
+| China selloff | 2015-08-01 to 2015-09-30 | −9.13% | −4.01% | 1.97% | 2.0x | 145 | 4 (0.4) |
+
+- In the COVID crash the worst day was 3.8 times the VaR calculated before the crash, and that VaR was broken on 12 of 23 days. VaR is built from ordinary days, so it is not enough on its own.
+- The 2022 window ended positive for this portfolio, so it is not a loss scenario here.
+- The China benchmark uses only 145 days of history, so it is less reliable.
+
+The four windows are well-known stress periods, with dates set by hand. As a cross-check, notebook 07 lists the portfolio's own largest peak-to-trough drops. The four largest overlap the four windows:
+
+| Peak | Trough | Largest drop |
+|---|---|---|
+| 2020-01-17 | 2020-03-23 | −39.68% |
+| 2018-09-20 | 2018-12-24 | −24.78% |
+| 2015-06-23 | 2016-01-21 | −17.38% |
+| 2022-01-11 | 2022-06-17 | −13.98% |
+
+The notebook also applies instant shocks of −10%, −20%, −30% and −40%. These give losses of $100,000 to $400,000. They are just the shock times the portfolio value, and do not model how different sectors would behave.
+
+![Stress testing](reports/07_stress_testing.png)
+
+## How the calculations are set up
+
+- **Portfolio return.** Each day's portfolio return is the weighted sum of each stock's simple (percentage) return. The loss is the negative of that return. Every method, backtest and stress test uses this same series.
+- **Constant weights.** Each stock is kept at 20% every day, which implies daily rebalancing.
+- **Dollars.** Dollar figures are the loss fraction times $1,000,000.
+- **No look-ahead.** A forecast for a given day uses only data up to the day before. The current EWMA volatility is the forecast for the next trading day.
+- **Same dates.** All backtested methods are scored on exactly the same 2,264 dates.
+- **Stress benchmark.** Each crisis is compared with a VaR from the 250 days before it started. A VaR from the full ten years would already contain the crisis.
+
+## Limitations
+
+- Parametric, Monte Carlo and EWMA assume normal returns. The 99% backtest shows this is a weak assumption for this data.
+- All figures are for one day. There is no multi-day scaling.
+- In a 250-day window only 2 to 3 days lie beyond the 99% level, and the historical 99% ES averages about 25 days. These estimates are noisy.
+- ES is checked with a simple ratio on breach days, not with a formal significance test.
+- The portfolio has only five large companies, chosen knowing that they did well over the period. JPM and GS are highly correlated.
+- The instant shocks are simple multiples and the China benchmark uses only 145 days.
+- Prices come from Yahoo Finance through `yfinance`, which is meant for research and education. Adjusted prices can be revised, so re-downloading may change figures slightly. The last price is 2024-12-30 because the download end date is exclusive.
+- This is an educational project. It is not investment advice and not a regulatory capital model.
+
+## How to run
+
+Requires Python 3.10 or later.
 
 ```
-├── notebooks/              # 01-07 — the mathematical derivations (source of truth)
-│   ├── 01_market_data_pipeline.ipynb
-│   ├── 02_historical_var.ipynb
-│   ├── 03_parametric_var.ipynb
-│   ├── 04_Monte_carlo_var.ipynb
-│   ├── 05_EWMA_var.ipynb
-│   ├── 06_Backtesting.ipynb
-│   └── 07_Stress_testing.ipynb
+pip install -r requirements.txt
+```
+
+**Notebooks.** Run 01 to 07 in order from inside the `notebooks/` folder. Notebook 01 downloads the prices and writes `data/log_returns.csv`. It needs an internet connection and no API key. Notebooks 02 to 07 write their charts to `reports/`.
+
+**Dashboard.**
+
+```
+streamlit run app.py
+```
+
+The sidebar sets the portfolio value, assets, weights, date range and number of Monte Carlo simulations. The app reads `sample_data/log_returns.csv` (the dataset used in this README), then `data/log_returns.csv`, and otherwise downloads from Yahoo Finance. It checks the data first and stops if there are fewer than 500 trading days.
+
+**Tests.** They need no data file.
+
+```
+python -m pytest -q
+```
+
+## Repo structure
+
+```
+├── notebooks/              # 01-07, run in order
+├── reports/                # charts written by the notebooks
+├── sample_data/
+│   └── log_returns.csv     # the dataset used in this README
 ├── src/
-│   ├── config.py            # shared portfolio/model defaults
-│   ├── data/loader.py
-│   ├── risk/                # var_models.py, metrics.py
-│   ├── validation/          # backtesting.py — Kupiec, Christoffersen
-│   ├── scenarios/           # stress_testing.py
-│   ├── visualization/       # charts.py
-│   └── reporting/           # report_generator.py — PDF/JSON reports
-├── app.py                   # Streamlit home page
-├── pages/                   # one page per method, mirrors notebooks 1:1
-├── ui_helpers.py            # shared sidebar/theme — presentation layer only
-├── tests/                   # known-answer tests, pinned to notebook output
-├── reports/                 # generated charts
-├── docs/model_validation_memo.md
+│   ├── config.py           # shared settings
+│   ├── data/               # loader.py, quality.py (data checks)
+│   ├── risk/               # var_models.py, metrics.py
+│   ├── validation/         # backtesting.py
+│   ├── scenarios/          # stress_testing.py
+│   ├── reporting/          # report_generator.py (PDF and JSON)
+│   └── visualization/      # charts.py
+├── app.py                  # dashboard home page
+├── pages/                  # one page per method, backtesting, stress testing
+├── ui_helpers.py           # sidebar and theme
+├── tests/                  # test_core.py
+├── pytest.ini
 ├── requirements.txt
 └── README.md
 ```
 
-`src/` contains every calculation exactly once; notebooks derive the
-math, and the Streamlit app calls into `src/` for everything it
-displays — nothing is computed twice, and nothing in the app can drift
-from what the notebooks derived.
+## Built with
 
----
-
-## Technologies
-
-Python · pandas · NumPy · SciPy · Plotly · Streamlit · reportlab ·
-pytest · yfinance
-
----
-
-## Installation
-
-```bash
-git clone <https://github.com/aayuuuushe/quant-risk-analytics-platform>
-cd quant-risk-analytics-platform
-pip install -r requirements.txt
-```
-
----
-
-## Usage
-
-**Notebooks** — run `01` through `07` in order to regenerate the
-underlying data and figures. Notebook 01 pulls live data from Yahoo
-Finance (internet connection required, no API key needed) and must run
-first.
-
-
-**Interactive dashboard:**
-
-```bash
-streamlit run app.py
-```
-
-The sidebar lets you explore different assets, weights, portfolio
-value, and date ranges — useful for demonstration and comparing how
-the models behave under different inputs. The baseline results
-reported in this README (VaR figures, backtest verdicts, stress test
-ratios) come from the fixed 5-asset, equal-weight portfolio validated
-in the notebooks; changing the sidebar inputs recalculates every
-number live using the same underlying models, but those specific
-combinations haven't been separately backtested the way the notebook's
-baseline case was.
-
-**Full risk report** — downloadable from the home page as PDF or JSON,
-containing an executive summary, plain-language interpretation, full
-VaR/ES tables, backtest verdicts, stress test results, model
-assumptions, limitations, warnings, and a glossary.
-
----
-
-## Testing
-
-```bash
-pytest tests/ -v
-```
-
-Tests pin known-answer values derived directly from the notebooks (e.g.
-Historical VaR at 95% = $18,045), so any future change to `src/` that
-breaks the underlying math is caught automatically rather than silently
-reaching the dashboard.
-
----
-
-## Roadmap
-
-Planned extensions, in priority order:
-
-- **Portfolio risk contribution** — decompose total VaR by asset
-  (component/marginal VaR) instead of showing only the aggregate
-  figure, matching how risk attribution is used on professional risk
-  desks.
-- **Realistic macro stress scenarios** — sector-specific shocks (rate
-  hikes, oil price, banking-sector decline) applied through the actual
-  weight vector, replacing simple uniform percentage shocks.
-- **GARCH(1,1) with Student-t innovations** — models volatility
-  clustering directly and captures fat tails, directly addressing the
-  limitation the current backtests already reveal (all four models
-  fail Kupiec at 99%, consistent with fat-tailed returns the Gaussian
-  and EWMA models don't fully capture).
-- **Regulatory horizon scaling** — extending from 1-day VaR to the
-  10-day horizon used in Basel capital calculations.
-
-These are sequenced deliberately after the current baseline models are
-fully tested and validated — correctness of what exists takes priority
-over adding new, less-validated methods.
-
----
+Python, pandas, NumPy, SciPy, matplotlib, Plotly, Streamlit, ReportLab, yfinance, pytest
 
 ## References
 
-- Hull, *Options, Futures and Other Derivatives*, Ch. 22
-- J.P. Morgan, *RiskMetrics Technical Document*, 1996
-- Kupiec, P. H. *Techniques for Verifying the Accuracy of Risk
-  Measurement Models*, Journal of Derivatives, 1995
-- Christoffersen, P. F. *Evaluating Interval Forecasts*, International
-  Economic Review, 1998
-- Basel Committee on Banking Supervision, *Supervisory Framework for
-  the Use of Backtesting*, 1996
-
----
-
-*This project is for educational and demonstration purposes and does
-not constitute investment or risk-management advice.*
+- Hull, J. *Options, Futures and Other Derivatives*, Chapter 22
+- J.P. Morgan / Reuters. *RiskMetrics Technical Document*, 1996
+- Kupiec, P. (1995). Techniques for Verifying the Accuracy of Risk Measurement Models. *Journal of Derivatives* 3(2)
+- Christoffersen, P. (1998). Evaluating Interval Forecasts. *International Economic Review* 39(4)
+- Basel Committee. *Supervisory Framework for the Use of "Backtesting" in Conjunction with the Internal Models Approach to Market Risk Capital Requirements*, 1996
